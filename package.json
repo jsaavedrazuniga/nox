@@ -1,0 +1,70 @@
+{
+    "name": "nombre-del-paquete",
+    "version": "1.0.0",
+    "description": "Descripción breve del paquete",
+    "type": "program",
+  
+    "platforms": {
+      "linux": {
+        "version": "1.2.0",
+        "url": "https://servidor.com/linux-paquete.tar.gz",
+        "hash": {
+          "type": "sha256",
+          "value": "def456...000"
+        }
+      }
+    },
+  
+    "arch": ["x64"],
+  
+    "dependencies": {
+      "otro-paquete": ">=2.0.0"
+    },
+  
+    "source": {
+      "type": "git",
+      "url": "https://repositorio.com/paquete.git",
+      "branch": "main",
+      "revision": "c0ffee42deadbeef12345678"
+    },
+  
+    "preinstall": {
+      "commands": [
+        "echo 'Verificando sistema...'",
+        "which gcc || echo 'GCC no encontrado'",
+        "chmod +x ./scripts/setup.sh",
+        "./scripts/setup.sh"
+      ],
+      "env": {
+        "SETUP_MODE": "true"
+      }
+    },
+  
+    "install": {
+      "commands": [
+        "make build",
+        "make install"
+      ],
+      "env": {
+        "VAR1": "valor"
+      }
+    },
+  
+    "uninstall": {
+      "commands": [
+        "make uninstall"
+      ]
+    },
+  
+    "postinstall": {
+      "commands": [
+        "echo 'Instalación completa'"
+      ]
+    },
+  
+    "meta": {
+      "author": "Tu Nombre",
+      "license": "MIT",
+      "homepage": "https://sitio-web.com"
+    }
+  }
