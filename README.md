@@ -1,8 +1,8 @@
-# nox - :milky_way: :zap: :package:
+# nox - :zap::package:
 
 ---
 
-The universal package manager
+The :milky_way: package manager
 
 ---
 
