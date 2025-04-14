@@ -1,13 +1,13 @@
 {
-    "name": "nombre-del-paquete",
+    "name": "package-name",
     "version": "1.0.0",
-    "description": "Descripción breve del paquete",
+    "description": "A brief description of the package",
     "type": "program",
   
     "platforms": {
       "linux": {
         "version": "1.2.0",
-        "url": "https://servidor.com/linux-paquete.tar.gz",
+        "url": "https://myserver.com/linux-package.tar.gz",
         "hash": {
           "type": "sha256",
           "value": "def456...000"
@@ -18,20 +18,20 @@
     "arch": ["x64"],
   
     "dependencies": {
-      "otro-paquete": ">=2.0.0"
+      "another-package": ">=2.0.0"
     },
   
     "source": {
       "type": "git",
-      "url": "https://repositorio.com/paquete.git",
+      "url": "https://github.com/user/package.git",
       "branch": "main",
       "revision": "c0ffee42deadbeef12345678"
     },
   
     "preinstall": {
       "commands": [
-        "echo 'Verificando sistema...'",
-        "which gcc || echo 'GCC no encontrado'",
+        "echo 'Checking system...'",
+        "which gcc || echo 'GCC not found'",
         "chmod +x ./scripts/setup.sh",
         "./scripts/setup.sh"
       ],
@@ -46,7 +46,7 @@
         "make install"
       ],
       "env": {
-        "VAR1": "valor"
+        "VAR1": "value"
       }
     },
   
@@ -58,13 +58,13 @@
   
     "postinstall": {
       "commands": [
-        "echo 'Instalación completa'"
+        "echo 'Installation complete'"
       ]
     },
   
     "meta": {
-      "author": "Tu Nombre",
+      "author": "Your name",
       "license": "MIT",
-      "homepage": "https://sitio-web.com"
+      "homepage": "https://yourname.com"
     }
   }
