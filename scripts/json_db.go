@@ -251,7 +251,7 @@ func main() {
 	startTime := time.Now()
 
 	if len(os.Args) < 2 {
-		fmt.Println("Uso: scoop-to-package <directorio-con-archivos-scoop> [directorio-lotusdb] [num-workers] [--debug]")
+		fmt.Println("Uso: json-db <directorio-con-archivos-scoop> [directorio-lotusdb] [num-workers] [--debug]")
 		os.Exit(1)
 	}
 
