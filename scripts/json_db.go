@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -53,40 +52,41 @@ func (soa *StringOrArray) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Para manejar campos que pueden ser string o mapas
-type StringOrMap struct {
+// Para manejar campos hash que pueden ser string o array
+type FlexibleHash struct {
 	IsString bool
+	IsArray  bool
 	String   string
-	Map      map[string]string
+	Array    []string
 }
 
-func (som *StringOrMap) UnmarshalJSON(data []byte) error {
+func (fh *FlexibleHash) UnmarshalJSON(data []byte) error {
 	// Verificar si es null
 	if string(data) == "null" {
-		som.IsString = true
-		som.String = ""
+		fh.IsString = true
+		fh.String = ""
 		return nil
 	}
 
 	// Intentar primero como string
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
-		som.IsString = true
-		som.String = s
+		fh.IsString = true
+		fh.String = s
 		return nil
 	}
 
-	// Si falla, intentar como mapa
-	var m map[string]string
-	if err := json.Unmarshal(data, &m); err == nil {
-		som.IsString = false
-		som.Map = m
+	// Si falla, intentar como array
+	var arr []string
+	if err := json.Unmarshal(data, &arr); err == nil {
+		fh.IsArray = true
+		fh.Array = arr
 		return nil
 	}
 
 	// Si ambos fallan, usar valores por defecto
-	som.IsString = true
-	som.String = ""
+	fh.IsString = true
+	fh.String = ""
 	return nil
 }
 
@@ -156,9 +156,9 @@ type ScoopManifest struct {
 	License      FlexibleValue `json:"license"`
 	Architecture map[string]struct {
 		URL  FlexibleValue `json:"url"`
-		Hash string        `json:"hash"`
+		Hash FlexibleHash  `json:"hash"` // Actualizado a FlexibleHash
 	} `json:"architecture"`
-	ExtractDir string                 `json:"extract_dir"`
+	ExtractDir StringOrArray          `json:"extract_dir"` // Cambiado de string a StringOrArray
 	PreInstall StringOrArray          `json:"pre_install"`
 	Bin        StringOrArray          `json:"bin"`
 	CheckVer   FlexibleValue          `json:"checkver"`
@@ -242,8 +242,8 @@ func (c *Cache) Set(key string, val []byte) {
 
 // Variables globales
 var (
-	cache    = NewCache()
-	logMu    sync.Mutex
+	cache = NewCache()
+	// logMu    sync.Mutex
 	procLogs []ProcessingLog
 )
 
@@ -295,7 +295,7 @@ func main() {
 	defer db.Close()
 
 	// Procesar archivos
-	files, err := ioutil.ReadDir(scoopDir)
+	files, err := os.ReadDir(scoopDir)
 	if err != nil {
 		fmt.Printf("Error al leer el directorio: %v\n", err)
 		os.Exit(1)
@@ -348,7 +348,7 @@ func main() {
 	// Guardar logs detallados a un archivo JSON
 	if debug {
 		logsJSON, _ := json.MarshalIndent(procLogs, "", "  ")
-		ioutil.WriteFile("processing_details.json", logsJSON, 0644)
+		os.WriteFile("processing_details.json", logsJSON, 0644)
 	}
 
 	elapsedTime := time.Since(startTime)
@@ -409,7 +409,7 @@ func processFiles(filesChan <-chan string, resultsChan chan<- ProcessingLog, db 
 			}
 
 			outputPath := strings.TrimSuffix(filePath, ".json") + "_package.json"
-			err = ioutil.WriteFile(outputPath, cachedData, 0644)
+			err = os.WriteFile(outputPath, cachedData, 0644)
 			if err != nil {
 				resultsChan <- ProcessingLog{
 					FileName:     fileName,
@@ -449,7 +449,7 @@ func processFiles(filesChan <-chan string, resultsChan chan<- ProcessingLog, db 
 
 func processFile(filePath string, db *lotusdb.DB, debug bool, pLog *ProcessingLog) error {
 	// Leer archivo de manifiesto de Scoop
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -505,7 +505,7 @@ func processFile(filePath string, db *lotusdb.DB, debug bool, pLog *ProcessingLo
 
 	// Opcionalmente, guardar el archivo JSON convertido
 	outputPath := strings.TrimSuffix(filePath, ".json") + "_package.json"
-	return ioutil.WriteFile(outputPath, packageData, 0644)
+	return os.WriteFile(outputPath, packageData, 0644)
 }
 
 func convertToPackageFormat(packageName string, scoop ScoopManifest) PackageManifest {
@@ -558,7 +558,14 @@ func convertToPackageFormat(packageName string, scoop ScoopManifest) PackageMani
 		}
 
 		platform.Hash.Type = "sha256"
-		platform.Hash.Value = details.Hash
+
+		// Manejar hash que puede ser string o array
+		if details.Hash.IsString {
+			platform.Hash.Value = details.Hash.String
+		} else if details.Hash.IsArray && len(details.Hash.Array) > 0 {
+			// Si es un array, usamos el primer valor
+			platform.Hash.Value = details.Hash.Array[0]
+		}
 
 		pkg.Platforms[platformKey] = platform
 	}
@@ -624,33 +631,4 @@ func convertToPackageFormat(packageName string, scoop ScoopManifest) PackageMani
 	}
 
 	return pkg
-}
-
-// Función auxiliar para buscar un paquete por nombre
-func findPackage(db *lotusdb.DB, packageName string) (PackageManifest, error) {
-	var pkg PackageManifest
-
-	data, err := db.Get([]byte(packageName))
-	if err != nil {
-		return pkg, err
-	}
-
-	if err := json.Unmarshal(data, &pkg); err != nil {
-		return pkg, err
-	}
-
-	return pkg, nil
-}
-
-// Función auxiliar para buscar un paquete por nombre de archivo
-func findPackageByFileName(db *lotusdb.DB, fileName string) (PackageManifest, error) {
-	// Primero obtenemos el nombre del paquete usando la clave del archivo
-	fileKey := "file:" + fileName
-	packageNameBytes, err := db.Get([]byte(fileKey))
-	if err != nil {
-		return PackageManifest{}, err
-	}
-
-	// Ahora buscamos el paquete por su nombre
-	return findPackage(db, string(packageNameBytes))
 }
