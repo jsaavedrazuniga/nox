@@ -215,35 +215,8 @@ type PackageManifest struct {
 	} `json:"meta,omitempty"`
 }
 
-// Cache para resultados de procesamiento
-type Cache struct {
-	mu    sync.RWMutex
-	items map[string][]byte // Clave: ruta del archivo, Valor: JSON procesado
-}
-
-func NewCache() *Cache {
-	return &Cache{
-		items: make(map[string][]byte),
-	}
-}
-
-func (c *Cache) Get(key string) ([]byte, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	val, exists := c.items[key]
-	return val, exists
-}
-
-func (c *Cache) Set(key string, val []byte) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.items[key] = val
-}
-
 // Variables globales
 var (
-	cache = NewCache()
-	// logMu    sync.Mutex
 	procLogs []ProcessingLog
 )
 
@@ -382,51 +355,6 @@ func processFiles(filesChan <-chan string, resultsChan chan<- ProcessingLog, db 
 		startTime := time.Now()
 		fileName := filepath.Base(filePath)
 
-		// Verificar caché primero
-		if cachedData, found := cache.Get(filePath); found {
-			// Recuperar del caché - simplemente guardar en la base de datos
-			packageName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-
-			err := db.Put([]byte(packageName), cachedData)
-			if err != nil {
-				resultsChan <- ProcessingLog{
-					FileName:     fileName,
-					Success:      false,
-					ErrorMessage: fmt.Sprintf("Error al guardar en DB desde caché: %v", err),
-				}
-				continue
-			}
-
-			fileKey := "file:" + fileName
-			err = db.Put([]byte(fileKey), []byte(packageName))
-			if err != nil {
-				resultsChan <- ProcessingLog{
-					FileName:     fileName,
-					Success:      false,
-					ErrorMessage: fmt.Sprintf("Error al guardar referencia en DB desde caché: %v", err),
-				}
-				continue
-			}
-
-			outputPath := strings.TrimSuffix(filePath, ".json") + "_package.json"
-			err = os.WriteFile(outputPath, cachedData, 0644)
-			if err != nil {
-				resultsChan <- ProcessingLog{
-					FileName:     fileName,
-					Success:      false,
-					ErrorMessage: fmt.Sprintf("Error al escribir archivo desde caché: %v", err),
-				}
-				continue
-			}
-
-			resultsChan <- ProcessingLog{
-				FileName:       fileName,
-				Success:        true,
-				ProcessingTime: time.Since(startTime),
-			}
-			continue
-		}
-
 		// No está en caché, procesar normalmente
 		pLog := ProcessingLog{
 			FileName: fileName,
@@ -472,14 +400,6 @@ func processFile(filePath string, db *lotusdb.DB, debug bool, pLog *ProcessingLo
 	fileName := filepath.Base(filePath)
 	packageName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 
-	// Verificar si ya tenemos este paquete en la DB
-	_, err = db.Get([]byte(packageName))
-	if err == nil {
-		// Ya existe, omitir
-		pLog.Fields["status"] = "ya existe en DB"
-		return nil
-	}
-
 	// Convertir a formato package.json
 	packageManifest := convertToPackageFormat(packageName, scoopManifest)
 
@@ -489,21 +409,12 @@ func processFile(filePath string, db *lotusdb.DB, debug bool, pLog *ProcessingLo
 		return err
 	}
 
-	// Guardar en caché
-	cache.Set(filePath, packageData)
-
 	// Guardar en la base de datos usando el nombre del paquete como clave
 	if err := db.Put([]byte(packageName), packageData); err != nil {
 		return err
 	}
 
-	// También guardar una referencia por nombre de archivo
-	fileKey := "file:" + fileName
-	if err := db.Put([]byte(fileKey), []byte(packageName)); err != nil {
-		return err
-	}
-
-	// Opcionalmente, guardar el archivo JSON convertido
+	// Guardar el archivo JSON convertido
 	outputPath := strings.TrimSuffix(filePath, ".json") + "_package.json"
 	return os.WriteFile(outputPath, packageData, 0644)
 }
