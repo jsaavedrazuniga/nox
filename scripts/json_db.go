@@ -321,7 +321,7 @@ func main() {
 	// Guardar logs detallados a un archivo JSON
 	if debug {
 		logsJSON, _ := json.MarshalIndent(procLogs, "", "  ")
-		os.WriteFile("processing_details.json", logsJSON, 0644)
+		os.WriteFile("processing_details.json", logsJSON, 0o644)
 	}
 
 	elapsedTime := time.Since(startTime)
@@ -333,7 +333,7 @@ func main() {
 
 func setupDatabase(dbDir string) (*lotusdb.DB, error) {
 	// Asegurar que el directorio existe
-	if err := os.MkdirAll(dbDir, 0755); err != nil {
+	if err := os.MkdirAll(dbDir, 0o755); err != nil {
 		return nil, err
 	}
 
@@ -416,7 +416,7 @@ func processFile(filePath string, db *lotusdb.DB, debug bool, pLog *ProcessingLo
 
 	// Guardar el archivo JSON convertido
 	outputPath := strings.TrimSuffix(filePath, ".json") + "_package.json"
-	return os.WriteFile(outputPath, packageData, 0644)
+	return os.WriteFile(outputPath, packageData, 0o644)
 }
 
 func convertToPackageFormat(packageName string, scoop ScoopManifest) PackageManifest {
