@@ -1,0 +1,39 @@
+name: Go CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  go-ci:
+    name: Go Format & Dependency Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Install gofumpt
+      run: go install mvdan.cc/gofumpt@latest
+
+    - name: Run gofumpt
+      run: |
+        gofumpt -l . > fmt.txt
+        if [ -s fmt.txt ]; then
+          echo "The following files need formatting:"
+          cat fmt.txt
+          exit 1
+        fi
+
+    - name: Check dependencies
+      run: |
+        go mod tidy
+        git diff --exit-code go.mod go.sum
+        go mod verify
