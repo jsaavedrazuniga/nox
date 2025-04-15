@@ -1,0 +1,53 @@
+name: package-name
+version: 1.0.0
+description: Brief description of the package
+type: program
+
+platforms:
+  linux:
+    version: 1.2.0
+    url: https://myserver.com/linux-package.tar.gz
+    hash:
+      type: sha256
+      value: def456...000
+
+arch:
+  - x64
+
+dependencies:
+  another-package: ">=2.0.0"
+
+source:
+  type: git
+  url: https://github.com/user/package.git
+  branch: main
+  revision: c0ffee42deadbeef12345678
+
+preinstall:
+  commands:
+    - echo 'Checkinc system...'
+    - which gcc || echo 'GCC not found'
+    - chmod +x ./scripts/setup.sh
+    - ./scripts/setup.sh
+  env:
+    SETUP_MODE: "true"
+
+install:
+  commands:
+    - make build
+    - make install
+  env:
+    VAR1: value
+
+uninstall:
+  commands:
+    - make uninstall
+
+postinstall:
+  commands:
+    - echo 'Installation complete'
+
+meta:
+  author: Your name
+  license: MIT
+  homepage: https://yourname.com
