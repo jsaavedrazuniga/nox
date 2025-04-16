@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/TeoDev1611/tars/cmd"
+import "github.com/TeoDev1611/nox/cmd"
 
 func main() {
 	cmd.Execute()
